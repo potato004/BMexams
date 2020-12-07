@@ -1,0 +1,60 @@
+//QUESTION NO 1 QUERY
+
+SELECT
+	CONCAT('T', LPAD(teacher.id, 11, '0')) as ID,
+	teacher.nickname as Nickname,
+	CASE
+		WHEN teacher.status = 0 THEN 'Discontinued'
+		WHEN teacher.status = 1 THEN 'Active'
+		WHEN teacher.status = 2 THEN 'Deactivated'
+		ELSE 'NA'
+	END as Status,
+	t_role.role as Roles
+FROM trn_teacher teacher
+LEFT JOIN 
+	(SELECT 
+		teacher_id,
+		GROUP_CONCAT(
+			DISTINCT
+			CASE
+				WHEN role = 1 THEN 'Trainer'
+				WHEN role = 2 THEN 'Assessor'
+				WHEN role = 3 THEN 'Staff'
+				ELSE 'NA'
+			END
+		SEPARATOR '/') AS role
+FROM trn_teacher_role
+GROUP BY teacher_id) t_role
+ON teacher.id = t_role.teacher_id
+
+//QUESTION NO 2 QUERY
+
+SELECT
+	teacher.id AS ID,
+	teacher.nickname AS Nickname,
+	t_time.open AS Open,
+	t_time.reserved AS Reserved,
+	t_eval.taught AS Taught,
+	t_eval.noshow AS NoShow
+FROM trn_teacher teacher
+INNER JOIN trn_teacher_role t_role
+	ON teacher.id = t_role.teacher_id
+INNER JOIN
+	(SELECT
+		teacher_id,
+		SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as open,
+		SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) as reserved
+	FROM trn_time_table
+	GROUP BY teacher_id) t_time
+	ON teacher.id = t_time.teacher_id
+INNER JOIN
+	(SELECT
+		teacher_id,
+		SUM(CASE WHEN result = 1 THEN 1 ELSE 0 END) as taught,
+		SUM(CASE WHEN result = 2 THEN 1 ELSE 0 END) as noshow
+	FROM trn_evaluation
+	GROUP BY teacher_id) t_eval
+	ON teacher.id = t_eval.teacher_id
+WHERE teacher.status IN(1,2)
+	AND  t_role.role IN(1,2)
+GROUP BY teacher.id
